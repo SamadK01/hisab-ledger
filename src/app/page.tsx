@@ -21,7 +21,6 @@ import { NotificationToast } from '@/components/NotificationToast';
 import { LoginView } from '@/components/LoginView';
 import { PartnerApprovalsModal } from '@/components/PartnerApprovalsModal';
 import { PasswordSettingsModal } from '@/components/PasswordSettingsModal';
-import { INITIAL_USER } from '@/lib/seed-data';
 import { Trash2 } from 'lucide-react';
 
 // Per-tab isolated session storage key
@@ -85,21 +84,30 @@ export default function Home() {
     try {
       const tabSession = sessionStorage.getItem(SESSION_TAB_KEY);
       if (tabSession) {
-        setCurrentUser(JSON.parse(tabSession));
+        const parsedUser: User = JSON.parse(tabSession);
+        if (parsedUser && parsedUser.id && parsedUser.role) {
+          setCurrentUser(parsedUser);
+          loadAllData(parsedUser);
+          if (parsedUser.role === 'ADMIN') {
+            fetchPendingApprovals();
+            fetchPasswordRequestsCount();
+          }
+        } else {
+          setCurrentUser(null);
+          sessionStorage.removeItem(SESSION_TAB_KEY);
+        }
       } else {
-        // Fallback default admin session for tab
-        setCurrentUser(INITIAL_USER);
-        sessionStorage.setItem(SESSION_TAB_KEY, JSON.stringify(INITIAL_USER));
+        // Strictly stay logged out - ZERO fallback to default admin!
+        setCurrentUser(null);
       }
     } catch {
-      setCurrentUser(INITIAL_USER);
+      setCurrentUser(null);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem(SESSION_TAB_KEY);
+      }
     } finally {
       setIsAuthChecked(true);
     }
-
-    loadAllData();
-    fetchPendingApprovals();
-    fetchPasswordRequestsCount();
   }, []);
 
   const fetchPendingApprovals = async () => {
@@ -127,52 +135,80 @@ export default function Home() {
     }
   };
 
-  const loadAllData = async () => {
+  const loadAllData = async (userToLoad?: User | null) => {
+    const activeUser = userToLoad !== undefined ? userToLoad : currentUser;
+    if (!activeUser) {
+      // Unauthenticated: strictly do not fetch or leak any data!
+      setParties([]);
+      setProducts([]);
+      setTransactions([]);
+      setStats({
+        totalReceivable: 0,
+        totalPayable: 0,
+        netBalance: 0,
+        totalStockValue: 0,
+        lowStockCount: 0,
+        totalPartiesCount: 0,
+        totalProductsCount: 0,
+      });
+      return;
+    }
+
+    const isPartner = activeUser.role === 'PARTNER' && Boolean(activeUser.partyId);
     let pList: Party[] | null = null;
     let prList: Product[] | null = null;
     let txList: Transaction[] | null = null;
 
     try {
-      const pRes = await fetch('/api/parties');
+      const partyUrl = isPartner ? `/api/parties?partyId=${activeUser.partyId}` : '/api/parties';
+      const pRes = await fetch(partyUrl);
       if (pRes.ok) pList = await pRes.json();
     } catch {
-      pList = LocalStoreManager.getParties();
+      pList = [];
     }
 
     try {
       const prRes = await fetch('/api/products');
       if (prRes.ok) prList = await prRes.json();
     } catch {
-      prList = LocalStoreManager.getProducts();
+      prList = [];
     }
 
     try {
-      const txRes = await fetch('/api/transactions');
+      const txUrl = isPartner ? `/api/transactions?partyId=${activeUser.partyId}` : '/api/transactions';
+      const txRes = await fetch(txUrl);
       if (txRes.ok) txList = await txRes.json();
     } catch {
-      txList = LocalStoreManager.getTransactions();
+      txList = [];
     }
 
-    const finalParties = pList !== null ? pList : LocalStoreManager.getParties();
-    const finalProducts = prList !== null ? prList : LocalStoreManager.getProducts();
-    const finalTxs = txList !== null ? txList : LocalStoreManager.getTransactions();
+    const finalParties = pList !== null ? pList : [];
+    const finalProducts = prList !== null ? prList : [];
+    const finalTxs = txList !== null ? txList : [];
 
     setParties(finalParties);
     setProducts(finalProducts);
     setTransactions(finalTxs);
     setStats(calculateDashboardStats(finalParties, finalProducts, finalTxs));
 
-    // Sync state with LocalStoreManager so client cache is identical to DB
-    LocalStoreManager.saveParties(finalParties);
-    LocalStoreManager.saveProducts(finalProducts);
-    LocalStoreManager.saveTransactions(finalTxs);
+    // Only save in browser storage if Master Admin
+    if (activeUser.role === 'ADMIN') {
+      LocalStoreManager.saveParties(finalParties);
+      LocalStoreManager.saveProducts(finalProducts);
+      LocalStoreManager.saveTransactions(finalTxs);
+    }
   };
 
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
     if (typeof window !== 'undefined') {
-      // Save session in sessionStorage (isolated per tab!)
+      // Save session in sessionStorage (isolated per tab)
       sessionStorage.setItem(SESSION_TAB_KEY, JSON.stringify(user));
+    }
+    loadAllData(user);
+    if (user.role === 'ADMIN') {
+      fetchPendingApprovals();
+      fetchPasswordRequestsCount();
     }
     showToast(
       user.role === 'ADMIN'
@@ -186,11 +222,53 @@ export default function Home() {
   };
 
   const handleLogout = () => {
+    // 1. Wipe in-memory states completely
     setCurrentUser(null);
+    setParties([]);
+    setProducts([]);
+    setTransactions([]);
+    setSelectedParty(null);
+    setIsPartyDetailOpen(false);
+    setIsTxModalOpen(false);
+    setIsPaymentModalOpen(false);
+    setIsPartyModalOpen(false);
+    setIsProductModalOpen(false);
+    setIsApprovalsModalOpen(false);
+    setIsPasswordModalOpen(false);
+    setPendingApprovalsCount(0);
+    setPendingPasswordRequestsCount(0);
+    setStats({
+      totalReceivable: 0,
+      totalPayable: 0,
+      netBalance: 0,
+      totalStockValue: 0,
+      lowStockCount: 0,
+      totalPartiesCount: 0,
+      totalProductsCount: 0,
+    });
+    setActiveTab('dashboard');
+
+    // 2. Completely wipe browser storage & cookies
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem(SESSION_TAB_KEY);
+      sessionStorage.clear();
+      LocalStoreManager.clearAll();
+      localStorage.clear();
+
+      try {
+        document.cookie.split(';').forEach((cookie) => {
+          const eqPos = cookie.indexOf('=');
+          const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+          if (name) {
+            document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;`;
+          }
+        });
+      } catch (e) {
+        console.error('Clear cookies error:', e);
+      }
     }
-    showToast(hinglishMode ? 'Aap logout ho chukay hain.' : 'Logged out successfully.', 'info');
+
+    showToast(hinglishMode ? 'Aap ba-hifazat logout ho chukay hain.' : 'Logged out securely.', 'info');
   };
 
   // Delete Party (Master Admin Only - Permanent DB Delete)

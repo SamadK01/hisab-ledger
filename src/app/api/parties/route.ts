@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const partyId = searchParams.get('partyId');
+
     const parties = await prisma.party.findMany({
+      where: partyId ? { id: partyId } : undefined,
       orderBy: { createdAt: 'desc' },
       include: { transactions: true },
     });

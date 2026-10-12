@@ -106,38 +106,47 @@ export function calculateDashboardStats(
 // Local Storage Helper Engine
 export class LocalStoreManager {
   static getParties(): Party[] {
-    if (typeof window === 'undefined') return INITIAL_PARTIES;
+    if (typeof window === 'undefined') return [];
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.PARTIES);
-      if (!stored) {
-        this.resetToDemoData();
-        return INITIAL_PARTIES;
-      }
+      if (!stored) return [];
       return JSON.parse(stored);
     } catch {
-      return INITIAL_PARTIES;
+      return [];
     }
   }
 
   static getProducts(): Product[] {
-    if (typeof window === 'undefined') return INITIAL_PRODUCTS;
+    if (typeof window === 'undefined') return [];
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-      if (!stored) return INITIAL_PRODUCTS;
+      if (!stored) return [];
       return JSON.parse(stored);
     } catch {
-      return INITIAL_PRODUCTS;
+      return [];
     }
   }
 
   static getTransactions(): Transaction[] {
-    if (typeof window === 'undefined') return INITIAL_TRANSACTIONS;
+    if (typeof window === 'undefined') return [];
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
-      if (!stored) return INITIAL_TRANSACTIONS;
+      if (!stored) return [];
       return JSON.parse(stored);
     } catch {
-      return INITIAL_TRANSACTIONS;
+      return [];
+    }
+  }
+
+  static clearAll() {
+    if (typeof window !== 'undefined') {
+      try {
+        Object.values(STORAGE_KEYS).forEach((k) => {
+          localStorage.removeItem(k);
+        });
+      } catch (e) {
+        console.error('Error clearing local storage keys:', e);
+      }
     }
   }
 

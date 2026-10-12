@@ -133,11 +133,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="text-[10px] text-slate-400 font-mono">{currentUser.email}</span>
               </div>
               <button
+                id="logout-button"
                 onClick={onLogout}
-                className="p-2 bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-300 rounded-lg border border-slate-700 transition-colors"
+                className="flex items-center space-x-1.5 px-2.5 py-1.5 bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-300 rounded-lg border border-slate-700 transition-colors cursor-pointer"
                 title="Logout"
               >
                 <LogOut className="w-4 h-4" />
+                <span className="text-xs font-semibold hidden sm:inline">Logout</span>
               </button>
             </div>
           )}
