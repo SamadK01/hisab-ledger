@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HisabPro (HisabLedger)
 
-## Getting Started
+A professional, mobile-first multi-party inventory and financial ledger web application built with **Next.js 16 (App Router)**, **TypeScript**, **Tailwind CSS**, and **Prisma ORM**. Optimized for zero-config deployment on **Vercel**.
 
-First, run the development server:
+Designed for small business owners and traders managing dynamic suppliers/partners and multi-product household inventory (Surf, Harpic, Tezab, Phenyl, Dishwash, Soap, etc.) with **Strict Partner Data Isolation**.
+
+---
+
+## 🔑 Login Credentials for Instant Testing
+
+You can test both **Master Admin** and **Partner Data Isolation** modes using the one-tap credentials buttons on the login screen or manually:
+
+### 1. 🛡️ Master Admin Credentials (Full Control)
+- **Email:** `admin@hisabpro.com`
+- **Password:** `admin123`
+- *Access:* Sees all partners, company-wide master statistics, stock valuation, and full ledger control.
+
+### 2. ⚡ Supplier Partner Account (Data Isolated)
+- **Email:** `almadina@partner.com`
+- **Password:** `partner123`
+- *Access:* **Al-Madina Chemicals Portal** — strictly sees only their own running balance (*PKR 45,000 Dena Hai*), deals, and passbook timeline.
+
+### 3. ⚡ Customer Partner Account (Data Isolated)
+- **Email:** `bismillah@partner.com`
+- **Password:** `partner123`
+- *Access:* **Bismillah Super Mart Portal** — strictly sees only their own running balance (*PKR 28,400 Lena Hai*), deals, and passbook timeline.
+
+---
+
+## ✨ Core Features
+
+1. **Partner Account Creation & Data Isolation**:
+   - Partner Self-Registration & Admin Creation.
+   - **Strict Privacy**: Partner accounts only see their own ledgers, transactions, and deals. Company-wide stats and other partners' ledgers are strictly hidden.
+   - **Master Admin Visibility**: Master Admin retains 100% full visibility across all partners and master summaries.
+
+2. **Multi-Party & Supplier Ledger Engine**:
+   - Add, manage, and switch between dynamic suppliers and partners.
+   - Independent ledgers, profile details, credit limits, and running balances (*Kitna Dena Hai / Kitna Lena Hai / Settled*).
+   - One-click WhatsApp balance statement sharing.
+
+3. **Advanced Multi-Product Inventory Catalog**:
+   - Pre-seeded with household items: *Surf Excel Powder 1kg*, *Harpic Toilet Cleaner 500ml*, *Tezab Acid 1L*, *Concentrated Phenyl 1L*, *Dishwash Bar Cartons*, *Bleach Cleaner*, *Washing Soap Packs*.
+   - Custom units (`kg`, `liter`, `piece`, `carton`, `box`, `pack`) with cost prices and wholesale rates.
+   - Low-stock warning alerts and automatic stock quantity movement on deals.
+
+4. **Complex "Len-Den" Accounting System**:
+   - Multi-item transaction deals: record multiple products in a single purchase/sale with quantity, rates, line subtotals, extra transport cost, discount, upfront cash paid, and remaining balance.
+   - Separate cash/bank payment settlement entries.
+   - Real-time Plus/Minus party balance calculations.
+
+5. **PDF Reports & Data Backup**:
+   - PDF Passbook / Statement exporter for individual party ledgers.
+   - PDF Inventory Stock Valuation report.
+   - Offline JSON backup download and restore.
+
+---
+
+## 🛠️ Getting Started (Local Development)
+
+1. Navigate to the repository directory:
+   ```bash
+   cd hisab-ledger
+   ```
+
+2. Ensure Prisma SQLite database is generated:
+   ```bash
+   npx prisma db push && npx prisma generate
+   ```
+
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+## 🚀 Deployment on Vercel
+
+HisabPro is pre-configured for zero-config Vercel deployment:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git add .
+git commit -m "Deploy HisabPro with Partner Data Isolation"
+git push origin main
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Import the repository on **Vercel** and click **Deploy**!

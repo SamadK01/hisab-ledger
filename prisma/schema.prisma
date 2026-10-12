@@ -1,0 +1,122 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String   @default("User")
+  email     String   @unique
+  password  String
+  role      String   @default("PARTNER") // ADMIN, PARTNER
+  status    String   @default("APPROVED") // APPROVED, PENDING_APPROVAL, REJECTED
+  partyId   String?
+  party     Party?   @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Party {
+  id             String          @id @default(uuid())
+  name           String
+  phone          String?
+  email          String?
+  address        String?
+  partyType      String          @default("BOTH") // SUPPLIER, CUSTOMER, BOTH
+  openingBalance Float           @default(0.0)    // positive = we owe them (Dena hai), negative = they owe us (Lena hai)
+  creditLimit    Float?
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  transactions   Transaction[]
+  users          User[]
+  messages       LedgerMessage[]
+}
+
+model Product {
+  id             String            @id @default(uuid())
+  name           String
+  sku            String?
+  category       String            @default("General") // Household, Detergents, Cleaners, etc.
+  unit           String            @default("kg")      // kg, liter, piece, carton, box, pack
+  costPrice      Float             @default(0.0)
+  wholesalePrice Float             @default(0.0)
+  currentStock   Float             @default(0.0)
+  minStock       Float             @default(10.0)
+  notes          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  items          TransactionItem[]
+}
+
+model Transaction {
+  id               String            @id @default(uuid())
+  partyId          String
+  party            Party             @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  type             String                              // PURCHASE, SALE, PAYMENT_GIVEN, PAYMENT_RECEIVED
+  invoiceNo        String?
+  date             DateTime          @default(now())
+  subtotal         Float             @default(0.0)
+  discount         Float             @default(0.0)
+  additionalCost   Float             @default(0.0)
+  totalAmount      Float             @default(0.0)
+  cashPaid         Float             @default(0.0)
+  remainingBalance Float             @default(0.0)
+  paymentMode      String            @default("CASH")  // CASH, BANK_TRANSFER, UPI, CHEQUE
+  status           String            @default("COMPLETED")
+  notes            String?
+  receiptImage     String?
+  buyingCostTotal  Float             @default(0.0)
+  sellingPriceTotal Float            @default(0.0)
+  expectedProfit   Float             @default(0.0)
+  lossAmount       Float             @default(0.0)
+  lossReason       String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  items            TransactionItem[]
+}
+
+model TransactionItem {
+  id            String      @id @default(uuid())
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  productId     String?
+  product       Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName   String
+  unit          String      @default("kg")
+  quantity      Float       @default(0.0)
+  rate          Float       @default(0.0)
+  costPrice     Float       @default(0.0)
+  subtotal      Float       @default(0.0)
+  costSubtotal  Float       @default(0.0)
+  expectedProfit Float      @default(0.0)
+  createdAt     DateTime    @default(now())
+}
+
+model LedgerMessage {
+  id         String   @id @default(uuid())
+  partyId    String
+  party      Party    @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  senderRole String   // ADMIN, PARTNER
+  senderName String
+  text       String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model PasswordResetRequest {
+  id        String   @id @default(uuid())
+  userId    String
+  userName  String
+  userEmail String
+  partyId   String?
+  partyName String?
+  reason    String?
+  status    String   @default("PENDING") // PENDING, RESOLVED, REJECTED
+  createdAt DateTime @default(now())
+}
+
