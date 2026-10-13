@@ -1,54 +1,59 @@
 'use client';
 
 import React from 'react';
-import { LayoutDashboard, Users, Package, ArrowLeftRight, FileSpreadsheet, Plus } from 'lucide-react';
+import { LayoutDashboard, Users, Package, ArrowLeftRight, FileSpreadsheet, Building } from 'lucide-react';
 
-export type TabType = 'dashboard' | 'parties' | 'products' | 'transactions' | 'reports';
+export type TabType = 'dashboard' | 'partners' | 'parties' | 'products' | 'transactions' | 'reports';
 
 interface BottomNavProps {
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
   onOpenQuickDeal: () => void;
-  hinglishMode: boolean;
+  hinglishMode?: boolean;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
   activeTab,
   setActiveTab,
   onOpenQuickDeal,
-  hinglishMode,
+  hinglishMode = false,
 }) => {
   const tabs = [
     {
       id: 'dashboard' as TabType,
-      label: hinglishMode ? 'Ghar' : 'Dashboard',
+      label: 'Dashboard',
       icon: LayoutDashboard,
     },
     {
-      id: 'parties' as TabType,
-      label: hinglishMode ? 'Khaate' : 'Parties',
+      id: 'partners' as TabType,
+      label: 'All Partners',
       icon: Users,
     },
     {
+      id: 'parties' as TabType,
+      label: 'Parties Ledger',
+      icon: Building,
+    },
+    {
       id: 'products' as TabType,
-      label: hinglishMode ? 'Stock' : 'Inventory',
+      label: 'Inventory',
       icon: Package,
     },
     {
       id: 'transactions' as TabType,
-      label: hinglishMode ? 'Len-Den' : 'History',
+      label: 'History',
       icon: ArrowLeftRight,
     },
     {
       id: 'reports' as TabType,
-      label: hinglishMode ? 'Hisaab' : 'Reports',
+      label: 'Reports',
       icon: FileSpreadsheet,
     },
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 py-2 px-3 sm:px-6 shadow-2xl">
-      <div className="max-w-md mx-auto flex items-center justify-around relative">
+    <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 py-2 px-2 sm:px-6 shadow-2xl">
+      <div className="max-w-2xl mx-auto flex items-center justify-around relative">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -57,7 +62,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col items-center justify-center space-y-1 py-1 px-2.5 rounded-xl transition-all ${
+              className={`flex flex-col items-center justify-center space-y-1 py-1 px-1.5 sm:px-2.5 rounded-xl transition-all ${
                 isActive
                   ? 'text-indigo-400 font-bold scale-105'
                   : 'text-slate-400 hover:text-slate-200 font-medium'

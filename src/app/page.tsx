@@ -21,20 +21,31 @@ import { NotificationToast } from '@/components/NotificationToast';
 import { LoginView } from '@/components/LoginView';
 import { PartnerApprovalsModal } from '@/components/PartnerApprovalsModal';
 import { PasswordSettingsModal } from '@/components/PasswordSettingsModal';
+import { PartnerManagementModal } from '@/components/PartnerManagementModal';
+import { PartnersPortalView } from '@/components/PartnersPortalView';
+import { DeleteConfirmModal } from '@/components/DeleteConfirmModal';
+import { useLanguage } from '@/lib/i18n';
 import { Trash2 } from 'lucide-react';
 
 // Per-tab isolated session storage key
 const SESSION_TAB_KEY = 'hisab_session_tab_v1';
 
 export default function Home() {
-  const [hinglishMode, setHinglishMode] = useState<boolean>(true);
+  const { language, setLanguage, t, isHinglish } = useLanguage();
+  const hinglishMode = false; // Strict default is clean professional English
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+  const [isPartnerManagementOpen, setIsPartnerManagementOpen] = useState<boolean>(false);
+  const [partyToDelete, setPartyToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isDeletingParty, setIsDeletingParty] = useState<boolean>(false);
+  const [userToDelete, setUserToDelete] = useState<{ id: string; name: string; partyId?: string | null } | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState<boolean>(false);
 
   // Auth User State (Per-tab Session Isolation)
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthChecked, setIsAuthChecked] = useState<boolean>(false);
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState<number>(0);
   const [pendingPasswordRequestsCount, setPendingPasswordRequestsCount] = useState<number>(0);
+  const [users, setUsers] = useState<any[]>([]);
 
   // Application Data States
   const [parties, setParties] = useState<Party[]>([]);
@@ -135,6 +146,93 @@ export default function Home() {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/users');
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(data);
+      }
+    } catch (e) {
+      console.error('Fetch users error:', e);
+    }
+  };
+
+  const handleUpdateUserCredentials = async (userId: string, updates: any) => {
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, ...updates }),
+      });
+      if (res.ok) {
+        showToast('Partner credentials updated successfully!');
+        await fetchUsers();
+        await loadAllData();
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleApproveUser = async (userId: string, status: 'APPROVED' | 'REJECTED') => {
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, status }),
+      });
+      if (res.ok) {
+        showToast(status === 'APPROVED' ? 'Partner account approved!' : 'Partner registration rejected.');
+        await fetchUsers();
+        await fetchPendingApprovals();
+        await loadAllData();
+      }
+    } catch (e) {
+      console.error('Approve user error:', e);
+    }
+  };
+
+  const handleDeleteUser = (userId: string, userName: string, partyId?: string | null) => {
+    if (currentUser?.role !== 'ADMIN') {
+      showToast('Only Master Admin can delete partner accounts.', 'error');
+      return;
+    }
+    setUserToDelete({ id: userId, name: userName, partyId });
+  };
+
+  const executeDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeletingUser(true);
+    try {
+      const res = await fetch(`/api/users?userId=${userToDelete.id}&deleteParty=true`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        showToast(`Partner account "${userToDelete.name}" permanently deleted.`);
+        if (userToDelete.partyId) {
+          LocalStoreManager.deleteParty(userToDelete.partyId);
+          setParties((prev) => prev.filter((p) => p.id !== userToDelete.partyId));
+        }
+        setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
+        setUserToDelete(null);
+        await fetchUsers();
+        await fetchPendingApprovals();
+        await loadAllData();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.message || 'Failed to delete partner account.', 'error');
+      }
+    } catch (e) {
+      console.error('Delete user error:', e);
+      showToast('Network error while deleting partner account.', 'error');
+    } finally {
+      setIsDeletingUser(false);
+    }
+  };
+
   const loadAllData = async (userToLoad?: User | null) => {
     const activeUser = userToLoad !== undefined ? userToLoad : currentUser;
     if (!activeUser) {
@@ -142,6 +240,7 @@ export default function Home() {
       setParties([]);
       setProducts([]);
       setTransactions([]);
+      setUsers([]);
       setStats({
         totalReceivable: 0,
         totalPayable: 0,
@@ -186,10 +285,19 @@ export default function Home() {
     const finalProducts = prList !== null ? prList : [];
     const finalTxs = txList !== null ? txList : [];
 
+    // REQUIREMENT 2: Main Master Dashboard strictly displays metrics, outstanding balances, and recent deals ONLY for parties directly linked to Master Admin transactions!
+    const tradingParties = activeUser.role === 'ADMIN'
+      ? finalParties.filter((p) => finalTxs.some((t) => t.partyId === p.id))
+      : finalParties;
+
     setParties(finalParties);
     setProducts(finalProducts);
     setTransactions(finalTxs);
-    setStats(calculateDashboardStats(finalParties, finalProducts, finalTxs));
+    setStats(calculateDashboardStats(tradingParties, finalProducts, finalTxs));
+
+    if (activeUser.role === 'ADMIN') {
+      fetchUsers();
+    }
 
     // Only save in browser storage if Master Admin
     if (activeUser.role === 'ADMIN') {
@@ -209,14 +317,11 @@ export default function Home() {
     if (user.role === 'ADMIN') {
       fetchPendingApprovals();
       fetchPasswordRequestsCount();
+      fetchUsers();
     }
     showToast(
       user.role === 'ADMIN'
-        ? hinglishMode
-          ? `Khushamdeed Master Admin "${user.name}"`
-          : `Welcome Master Admin ${user.name}`
-        : hinglishMode
-        ? `Khushamdeed Partner Portal "${user.name}"`
+        ? `Welcome Master Admin ${user.name}`
         : `Welcome ${user.name}`
     );
   };
@@ -271,41 +376,65 @@ export default function Home() {
     showToast(hinglishMode ? 'Aap ba-hifazat logout ho chukay hain.' : 'Logged out securely.', 'info');
   };
 
-  // Delete Party (Master Admin Only - Permanent DB Delete)
-  const handleDeleteParty = async (partyId: string, partyName: string) => {
+  // Delete Party (Master Admin Only - Trigger In-App Modal)
+  const handleDeleteParty = (partyId: string, partyName: string) => {
     if (currentUser?.role !== 'ADMIN') {
       showToast('Only Master Admin can delete parties and clear account ledgers.', 'error');
       return;
     }
+    setPartyToDelete({ id: partyId, name: partyName });
+  };
 
-    if (
-      confirm(
-        `Are you sure you want to delete "${partyName}" and clear all associated ledger transactions? This action cannot be undone.`
-      )
-    ) {
-      try {
-        await fetch(`/api/parties/${partyId}`, { method: 'DELETE' });
-      } catch (e) {
-        console.error('Delete party API failed:', e);
+  // Permanently cascade delete party and all records upon modal confirmation
+  const executeDeleteParty = async () => {
+    if (!partyToDelete) return;
+    const { id: partyId, name: partyName } = partyToDelete;
+    setIsDeletingParty(true);
+
+    try {
+      const res = await fetch(`/api/parties/${partyId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        showToast(errData.message || 'Failed to delete party from server', 'error');
+        setIsDeletingParty(false);
+        return;
       }
-
-      LocalStoreManager.deleteParty(partyId);
-      const updatedParties = parties.filter((p) => p.id !== partyId);
-      const updatedTxs = transactions.filter((t) => t.partyId !== partyId);
-
-      setParties(updatedParties);
-      setTransactions(updatedTxs);
-      setStats(calculateDashboardStats(updatedParties, products, updatedTxs));
-      LocalStoreManager.saveParties(updatedParties);
-      LocalStoreManager.saveTransactions(updatedTxs);
-
-      showToast(
-        hinglishMode
-          ? `Party "${partyName}" aur uske tamam len-den khaate delete ho gaye!`
-          : `Party "${partyName}" and associated ledger records permanently deleted!`,
-        'info'
-      );
+    } catch (e) {
+      console.error('Delete party API failed:', e);
+      showToast('Network error while deleting party', 'error');
+      setIsDeletingParty(false);
+      return;
     }
+
+    // Close modal and unselect party if currently viewing
+    if (selectedParty?.id === partyId) {
+      setSelectedParty(null);
+      setIsPartyDetailOpen(false);
+    }
+
+    LocalStoreManager.deleteParty(partyId);
+    const updatedParties = parties.filter((p) => p.id !== partyId);
+    const updatedTxs = transactions.filter((t) => t.partyId !== partyId);
+
+    setParties(updatedParties);
+    setTransactions(updatedTxs);
+    setStats(calculateDashboardStats(updatedParties, products, updatedTxs));
+    LocalStoreManager.saveParties(updatedParties);
+    LocalStoreManager.saveTransactions(updatedTxs);
+
+    setPartyToDelete(null);
+    setIsDeletingParty(false);
+
+    showToast(
+      hinglishMode
+        ? `Party "${partyName}" aur uske tamam len-den khaate delete ho gaye!`
+        : `Party "${partyName}" and associated ledger records permanently deleted!`,
+      'info'
+    );
+
+    // Re-fetch in background to ensure 100% sync
+    loadAllData();
+    fetchPendingApprovals();
   };
 
   // Delete Transaction (Master Admin Only - Permanent DB Delete)
@@ -506,7 +635,10 @@ export default function Home() {
 
       LocalStoreManager.resetToDemoData();
       await loadAllData();
-      showToast(hinglishMode ? 'Database demo data se re-seed ho gaya!' : 'Database reset to demo dataset!');
+      await fetchUsers();
+      await fetchPendingApprovals();
+      await fetchPasswordRequestsCount();
+      showToast('Database successfully reset to clean multi-party trading dataset!');
     }
   };
 
@@ -537,15 +669,13 @@ export default function Home() {
         currentUser={currentUser}
         pendingApprovalsCount={pendingApprovalsCount}
         pendingPasswordRequestsCount={pendingPasswordRequestsCount}
-        hinglishMode={hinglishMode}
-        setHinglishMode={setHinglishMode}
         onOpenTransaction={(t) => handleOpenTransaction(t)}
         onOpenPartyModal={() => setIsPartyModalOpen(true)}
         onOpenProductModal={() => {
           setProductToEdit(null);
           setIsProductModalOpen(true);
         }}
-        onOpenApprovalsModal={() => setIsApprovalsModalOpen(true)}
+        onOpenPartnerManagementModal={() => setActiveTab('partners')}
         onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
         onResetData={handleResetData}
         onLogout={handleLogout}
@@ -572,6 +702,25 @@ export default function Home() {
               setIsPartyDetailOpen(true);
             }}
             onNavigateToTab={(tab) => setActiveTab(tab)}
+          />
+        )}
+
+        {activeTab === 'partners' && (
+          <PartnersPortalView
+            currentUser={currentUser}
+            parties={parties}
+            transactions={transactions}
+            users={users}
+            onOpenPartyModal={() => setIsPartyModalOpen(true)}
+            onSelectParty={(party) => {
+              setSelectedParty(party);
+              setIsPartyDetailOpen(true);
+            }}
+            onRefreshUsers={fetchUsers}
+            onDeleteUser={handleDeleteUser}
+            onUpdateUserCredentials={handleUpdateUserCredentials}
+            onApproveUser={handleApproveUser}
+            onOpenTransactionForParty={(party, t) => handleOpenTransaction(t, party)}
           />
         )}
 
@@ -625,13 +774,13 @@ export default function Home() {
                     onClick={() => handleOpenTransaction('PURCHASE')}
                     className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg transition-all"
                   >
-                    + {hinglishMode ? 'Mal Mangwaya Deal' : 'New Deal'}
+                    + Purchase Deal
                   </button>
                   <button
                     onClick={() => handleOpenTransaction('PAYMENT_GIVEN')}
                     className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-4 py-2.5 rounded-xl border border-slate-700 transition-all"
                   >
-                    + {hinglishMode ? 'Cash Jama / Diya' : 'Payment Entry'}
+                    + Cash Payment
                   </button>
                 </div>
               )}
@@ -667,12 +816,12 @@ export default function Home() {
                         </div>
                         <p className="text-xs text-slate-400 mt-0.5">
                           {tx.type === 'PURCHASE'
-                            ? 'Mal Mangwaya (Purchase)'
+                            ? 'Purchase'
                             : tx.type === 'SALE'
-                            ? 'Mal Becha (Sale)'
+                            ? 'Sale'
                             : tx.type === 'PAYMENT_GIVEN'
-                            ? 'Cash Paid Out'
-                            : 'Cash Received'}
+                            ? 'Cash Payment'
+                            : 'Cash Collection'}
                           {' • '}
                           {new Date(tx.date).toLocaleDateString()} • Mode: {tx.paymentMode}
                         </p>
@@ -726,6 +875,11 @@ export default function Home() {
         transactions={transactions}
         currentUser={currentUser}
         hinglishMode={hinglishMode}
+        users={users}
+        onUserCredentialsUpdated={() => {
+          fetchUsers();
+          loadAllData();
+        }}
         onClose={() => {
           setIsPartyDetailOpen(false);
           setSelectedParty(null);
@@ -787,6 +941,40 @@ export default function Home() {
         currentUser={currentUser}
         hinglishMode={hinglishMode}
         onToast={showToast}
+      />
+
+      {/* Master Admin Dedicated Partner Management & Credentials Panel */}
+      <PartnerManagementModal
+        isOpen={isPartnerManagementOpen}
+        onClose={() => setIsPartnerManagementOpen(false)}
+        parties={parties}
+        onDataChanged={() => {
+          fetchPendingApprovals();
+          fetchPasswordRequestsCount();
+          loadAllData();
+        }}
+      />
+
+      {/* In-App Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={partyToDelete !== null}
+        title={`Delete Party "${partyToDelete?.name}"?`}
+        message="This action will permanently delete this partner record and cascade-delete all associated transactions, ledger entries, and linked user profiles from the database. This action CANNOT be undone."
+        confirmLabel="Permanently Delete Party"
+        isDeleting={isDeletingParty}
+        onConfirm={executeDeleteParty}
+        onCancel={() => setPartyToDelete(null)}
+      />
+
+      {/* In-App User Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={userToDelete !== null}
+        title={`Delete Partner "${userToDelete?.name}"?`}
+        message="This action will permanently delete this partner user account and remove their linked platform profile and records from the database. This action CANNOT be undone."
+        confirmLabel="Permanently Delete Partner"
+        isDeleting={isDeletingUser}
+        onConfirm={executeDeleteUser}
+        onCancel={() => setUserToDelete(null)}
       />
 
       {/* Bottom Navigation */}

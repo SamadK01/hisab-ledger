@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     const parties = await prisma.party.findMany({
       where: partyId ? { id: partyId } : undefined,
       orderBy: { createdAt: 'desc' },
-      include: { transactions: true },
+      include: { transactions: true, users: true },
     });
 
     return NextResponse.json(parties);
@@ -34,6 +34,33 @@ export async function POST(request: Request) {
         notes: body.notes || null,
       },
     });
+
+    // If Master Admin created a partner with portal login credentials, provision user account immediately
+    if (body.email && body.password) {
+      const cleanEmail = body.email.trim().toLowerCase();
+      const cleanPassword = body.password.trim();
+      if (cleanEmail && cleanPassword) {
+        await prisma.user.upsert({
+          where: { email: cleanEmail },
+          update: {
+            name: body.name,
+            password: cleanPassword,
+            role: 'PARTNER',
+            status: 'APPROVED',
+            partyId: newParty.id,
+          },
+          create: {
+            name: body.name,
+            email: cleanEmail,
+            password: cleanPassword,
+            role: 'PARTNER',
+            status: 'APPROVED',
+            partyId: newParty.id,
+          },
+        });
+      }
+    }
+
     return NextResponse.json(newParty, { status: 201 });
   } catch (error) {
     console.error('Prisma POST party error:', error);

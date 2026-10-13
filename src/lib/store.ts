@@ -68,6 +68,7 @@ export function calculateDashboardStats(
   // Profit, Loss, Buying Cost & Sales Revenue Calculations
   let totalBuyingCost = 0;
   let totalSalesRevenue = 0;
+  let totalCostOfGoodsSold = 0;
   let totalLossDamage = 0;
 
   transactions.forEach((tx) => {
@@ -76,7 +77,13 @@ export function calculateDashboardStats(
     } else if (tx.type === 'SALE') {
       totalSalesRevenue += Number(tx.totalAmount || 0);
       if (tx.buyingCostTotal) {
-        totalBuyingCost += Number(tx.buyingCostTotal || 0);
+        totalCostOfGoodsSold += Number(tx.buyingCostTotal || 0);
+      } else if (tx.items && tx.items.length > 0) {
+        const itemsCost = tx.items.reduce(
+          (sum, it) => sum + Number(it.costPrice || 0) * Number(it.quantity || 0),
+          0
+        );
+        totalCostOfGoodsSold += itemsCost;
       }
     }
     if (tx.lossAmount) {
@@ -84,7 +91,7 @@ export function calculateDashboardStats(
     }
   });
 
-  const totalGrossProfit = Math.max(0, totalSalesRevenue - totalBuyingCost);
+  const totalGrossProfit = Math.max(0, totalSalesRevenue - totalCostOfGoodsSold);
   const netProfit = totalGrossProfit - totalLossDamage;
 
   return {

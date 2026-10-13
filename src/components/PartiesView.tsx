@@ -69,13 +69,21 @@ export const PartiesView: React.FC<PartiesViewProps> = ({
   const sendWhatsAppReminder = (party: Party, balance: number, e: React.MouseEvent) => {
     e.stopPropagation();
     const phone = party.phone?.replace(/[^0-9]/g, '');
-    let text = `Salam ${party.name}! HisabPro Khaata Summary:\n`;
+    let text = hinglishMode
+      ? `Salam ${party.name}! HisabPro Khaata Summary:\n`
+      : `Hello ${party.name}! HisabPro Account Balance Statement:\n`;
     if (balance > 0) {
-      text += `Aapka Total Dena (Payable): PKR ${balance.toLocaleString()}.\nShukriya!`;
+      text += hinglishMode
+        ? `Aapka Total Dena (Payable): PKR ${balance.toLocaleString()}.\nShukriya!`
+        : `Total Outstanding Balance (Payable): PKR ${balance.toLocaleString()}.\nThank you!`;
     } else if (balance < 0) {
-      text += `Aapka Wajib-ul-Ada Balance (Lena Hai): PKR ${Math.abs(balance).toLocaleString()}.\nBaraye meharbani payment clear karein. Shukriya!`;
+      text += hinglishMode
+        ? `Aapka Wajib-ul-Ada Balance (Lena Hai): PKR ${Math.abs(balance).toLocaleString()}.\nBaraye meharbani payment clear karein. Shukriya!`
+        : `Total Receivable Balance: PKR ${Math.abs(balance).toLocaleString()}.\nPlease clear this balance at your earliest convenience. Thank you!`;
     } else {
-      text += `Aapka Khaata mukammal settled (Zero Balance) hai. Shukriya!`;
+      text += hinglishMode
+        ? `Aapka Khaata mukammal settled (Zero Balance) hai. Shukriya!`
+        : `Your account is fully settled (Zero Balance). Thank you!`;
     }
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
@@ -126,11 +134,11 @@ export const PartiesView: React.FC<PartiesViewProps> = ({
           {/* Filter Chip Tabs */}
           <div className="flex items-center overflow-x-auto space-x-1.5 pb-1 md:pb-0 scrollbar-none">
             {[
-              { id: 'ALL', label: hinglishMode ? 'Tamam' : 'All' },
-              { id: 'SUPPLIER', label: hinglishMode ? 'Suppliers' : 'Suppliers' },
-              { id: 'CUSTOMER', label: hinglishMode ? 'Customers' : 'Customers' },
-              { id: 'DENA', label: hinglishMode ? 'Dena Hai' : 'Payables' },
-              { id: 'LENA', label: hinglishMode ? 'Lena Hai' : 'Receivables' },
+              { id: 'ALL', label: 'All Parties' },
+              { id: 'SUPPLIER', label: 'Suppliers' },
+              { id: 'CUSTOMER', label: 'Customers' },
+              { id: 'DENA', label: 'Payable' },
+              { id: 'LENA', label: 'Receivable' },
             ].map((chip) => (
               <button
                 key={chip.id}
@@ -180,12 +188,12 @@ export const PartiesView: React.FC<PartiesViewProps> = ({
                     {bal > 0 ? (
                       <span className="inline-flex items-center space-x-1 text-xs font-extrabold px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20">
                         <TrendingDown className="w-3.5 h-3.5" />
-                        <span>PKR {bal.toLocaleString()} Dena</span>
+                        <span>PKR {bal.toLocaleString()} Payable</span>
                       </span>
                     ) : bal < 0 ? (
                       <span className="inline-flex items-center space-x-1 text-xs font-extrabold px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                         <TrendingUp className="w-3.5 h-3.5" />
-                        <span>PKR {Math.abs(bal).toLocaleString()} Lena</span>
+                        <span>PKR {Math.abs(bal).toLocaleString()} Receivable</span>
                       </span>
                     ) : (
                       <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400">
@@ -249,7 +257,7 @@ export const PartiesView: React.FC<PartiesViewProps> = ({
                 </div>
 
                 <div className="flex items-center space-x-1 text-xs text-indigo-400 font-semibold group-hover:translate-x-1 transition-transform">
-                  <span>{hinglishMode ? 'Khaata Passbook' : 'View Passbook'}</span>
+                  <span>View Passbook</span>
                   <ChevronRight className="w-4 h-4" />
                 </div>
               </div>

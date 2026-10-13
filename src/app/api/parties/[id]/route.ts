@@ -26,7 +26,19 @@ export async function DELETE(
     const targetId = party?.id || id;
     const partyEmail = party?.email || null;
 
-    // 1. Delete associated transactions
+    // 1. Delete associated transaction items first, then transactions
+    const partyTxs = await prisma.transaction.findMany({
+      where: { partyId: targetId },
+      select: { id: true },
+    });
+    const txIds = partyTxs.map((t) => t.id);
+
+    if (txIds.length > 0) {
+      await prisma.transactionItem.deleteMany({
+        where: { transactionId: { in: txIds } },
+      });
+    }
+
     await prisma.transaction.deleteMany({
       where: { partyId: targetId },
     });
@@ -41,7 +53,7 @@ export async function DELETE(
       where: {
         OR: [
           { partyId: targetId },
-          partyEmail ? { userEmail: partyEmail } : {},
+          ...(partyEmail ? [{ userEmail: partyEmail }] : []),
         ],
       },
     });
@@ -51,7 +63,7 @@ export async function DELETE(
       where: {
         OR: [
           { partyId: targetId },
-          partyEmail ? { email: partyEmail } : {},
+          ...(partyEmail ? [{ email: partyEmail }] : []),
         ],
       },
     });
@@ -70,11 +82,11 @@ export async function DELETE(
       success: true,
       message: 'Party, partner credentials, and all associated ledger records permanently deleted!',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Delete party API error:', error);
     return NextResponse.json(
-      { success: true, message: 'Processed party delete' },
-      { status: 200 }
+      { success: false, message: error?.message || 'Failed to delete party' },
+      { status: 500 }
     );
   }
 }

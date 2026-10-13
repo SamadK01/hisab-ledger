@@ -100,7 +100,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 type === 'PAYMENT_GIVEN' ? 'bg-rose-600 text-white' : 'text-slate-400 hover:text-white'
               }`}
             >
-              {hinglishMode ? 'Paise Diye (Payment Given)' : 'Paid Out (Give)'}
+              Cash Payment (Paid Out)
             </button>
             <button
               type="button"
@@ -109,7 +109,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 type === 'PAYMENT_RECEIVED' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
               }`}
             >
-              {hinglishMode ? 'Paise Mile (Payment Received)' : 'Received (Collect)'}
+              Cash Collection (Received)
             </button>
           </div>
 

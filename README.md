@@ -8,7 +8,7 @@ Designed for small business owners and traders managing dynamic suppliers/partne
 
 ## 🔑 Login Credentials for Instant Testing
 
-You can test both **Master Admin** and **Partner Data Isolation** modes using the one-tap credentials buttons on the login screen or manually:
+You can sign in to test both **Master Admin** and **Partner Data Isolation** modes using the clean unified login form with the accounts below:
 
 ### 1. 🛡️ Master Admin Credentials (Full Control)
 - **Email:** `admin@hisabpro.com`

@@ -7,16 +7,14 @@ import {
   Mail,
   Eye,
   EyeOff,
-  Zap,
-  ShieldCheck,
   ArrowRight,
   UserPlus,
-  UserCheck,
   Building,
   Phone,
   MapPin,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
-import { DEFAULT_ADMIN_CREDENTIALS, DEFAULT_PARTNER_CREDENTIALS } from '@/lib/seed-data';
 import { User, PartyType } from '@/lib/types';
 
 interface LoginViewProps {
@@ -25,7 +23,7 @@ interface LoginViewProps {
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, hinglishMode }) => {
-  const [activeTab, setActiveTab] = useState<'ADMIN' | 'PARTNER' | 'REGISTER'>('ADMIN');
+  const [mode, setMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
 
   // Login Form Fields
   const [email, setEmail] = useState<string>('');
@@ -39,24 +37,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, hinglishMo
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState<boolean>(false);
   const [regPartyType, setRegPartyType] = useState<PartyType>('BOTH');
   const [regPhone, setRegPhone] = useState('');
   const [regAddress, setRegAddress] = useState('');
-
-  const handleAutoFillAdmin = () => {
-    setActiveTab('ADMIN');
-    setEmail(DEFAULT_ADMIN_CREDENTIALS.email);
-    setPassword(DEFAULT_ADMIN_CREDENTIALS.password);
-    setErrorMsg(null);
-  };
-
-  const handleAutoFillPartner = (idx: number) => {
-    setActiveTab('PARTNER');
-    const p = DEFAULT_PARTNER_CREDENTIALS[idx];
-    setEmail(p.email);
-    setPassword(p.password);
-    setErrorMsg(null);
-  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,50 +52,22 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, hinglishMo
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password: password.trim() }),
       });
 
       const data = await res.json();
 
-      if (data.success && data.user) {
+      if (res.ok && data.success && data.user) {
         onLoginSuccess(data.user);
       } else {
-        setErrorMsg(data.message || 'Ghalat email ya password credentials.');
+        setErrorMsg(data.message || (hinglishMode ? 'Ghalat email ya password.' : 'Invalid email or password.'));
       }
     } catch {
-      // Offline / Client-side fallback check
-      const normalized = email.trim().toLowerCase();
-      if (
-        normalized === DEFAULT_ADMIN_CREDENTIALS.email &&
-        password.trim() === DEFAULT_ADMIN_CREDENTIALS.password
-      ) {
-        onLoginSuccess({
-          id: 'user-admin-1',
-          name: 'Master Business Admin',
-          email: DEFAULT_ADMIN_CREDENTIALS.email,
-          role: 'ADMIN',
-          status: 'APPROVED',
-        });
-        return;
-      }
-
-      const pMatch = DEFAULT_PARTNER_CREDENTIALS.find(
-        (p) => p.email.toLowerCase() === normalized && p.password === password.trim()
+      setErrorMsg(
+        hinglishMode
+          ? 'Server se rabta nahi ho saka. Barah-e-karam apna internet check karein.'
+          : 'Failed to connect to authentication server. Please check your connection.'
       );
-
-      if (pMatch) {
-        onLoginSuccess({
-          id: `user-${pMatch.partyId}`,
-          name: pMatch.name,
-          email: pMatch.email,
-          role: 'PARTNER',
-          status: 'APPROVED',
-          partyId: pMatch.partyId,
-        });
-        return;
-      }
-
-      setErrorMsg('Invalid login credentials!');
     } finally {
       setIsLoading(false);
     }
@@ -128,24 +84,38 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, hinglishMo
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: regName,
-          email: regEmail,
-          password: regPassword,
+          name: regName.trim(),
+          email: regEmail.trim(),
+          password: regPassword.trim(),
           partyType: regPartyType,
-          phone: regPhone,
-          address: regAddress,
+          phone: regPhone.trim() || undefined,
+          address: regAddress.trim() || undefined,
         }),
       });
 
       const data = await res.json();
 
-      if (data.success && data.user) {
-        setSuccessMsg('Registration submitted! Your account status is PENDING_APPROVAL. Master Admin will approve your account.');
+      if (res.ok && data.success) {
+        setSuccessMsg(
+          hinglishMode
+            ? 'Aapki partner application jama ho gayi hai! Master Admin ki manzoori ke baad aap login kar sakenge.'
+            : 'Application submitted successfully! Your account is pending Master Admin approval before you can sign in.'
+        );
+        // Reset registration fields
+        setRegName('');
+        setRegEmail('');
+        setRegPassword('');
+        setRegPhone('');
+        setRegAddress('');
       } else {
-        setErrorMsg(data.message || 'Failed to complete registration.');
+        setErrorMsg(data.message || (hinglishMode ? 'Registration fail ho gayi.' : 'Failed to complete registration.'));
       }
-    } catch (err) {
-      setErrorMsg('An error occurred during registration.');
+    } catch {
+      setErrorMsg(
+        hinglishMode
+          ? 'Registration ke dauran khata pesh aayi.'
+          : 'An error occurred during registration. Please try again.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -153,120 +123,68 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, hinglishMo
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 sm:p-6 relative overflow-hidden font-sans">
-      {/* Background Glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-indigo-600/15 blur-3xl pointer-events-none" />
-      <div className="absolute bottom-10 right-10 w-72 h-72 rounded-full bg-purple-600/10 blur-3xl pointer-events-none" />
+      {/* Ambient Radial Glow */}
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] rounded-full bg-indigo-600/10 blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-10 right-10 w-80 h-80 rounded-full bg-purple-600/10 blur-[100px] pointer-events-none" />
 
       <div className="w-full max-w-md relative z-10 space-y-6">
         {/* Brand Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-500 shadow-xl shadow-indigo-500/30 text-white mb-2">
-            <BookOpen className="w-8 h-8" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 shadow-xl shadow-indigo-500/25 text-white mb-1">
+            <BookOpen className="w-7 h-7" />
           </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">HisabPro</h1>
+          <h1 className="text-3xl font-black text-white tracking-tight">HisabPro</h1>
           <p className="text-xs text-slate-400 font-medium">
             {hinglishMode
-              ? 'Multi-Party Inventory & Partner Portal Ledger'
-              : 'Multi-Party Inventory & Partner Data Isolation'}
+              ? 'Multi-Party Inventory & Financial Ledger Portal'
+              : 'Multi-Party Inventory & Financial Ledger Portal'}
           </p>
         </div>
 
-        {/* Role & Signup Switcher Tabs */}
-        <div className="grid grid-cols-3 gap-1.5 p-1.5 bg-slate-900 border border-slate-800 rounded-2xl">
-          <button
-            onClick={() => {
-              setActiveTab('ADMIN');
-              setErrorMsg(null);
-            }}
-            className={`py-2 text-[11px] font-extrabold rounded-xl transition-all ${
-              activeTab === 'ADMIN' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Master Admin
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('PARTNER');
-              setErrorMsg(null);
-            }}
-            className={`py-2 text-[11px] font-extrabold rounded-xl transition-all ${
-              activeTab === 'PARTNER' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Partner Portal
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('REGISTER');
-              setErrorMsg(null);
-            }}
-            className={`py-2 text-[11px] font-extrabold rounded-xl transition-all ${
-              activeTab === 'REGISTER' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            + Partner Signup
-          </button>
-        </div>
-
         {/* Main Card */}
-        <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
-          {/* Quick Demo Credentials Buttons */}
-          {(activeTab === 'ADMIN' || activeTab === 'PARTNER') && (
-            <div className="p-3 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-2">
-              <div className="flex items-center space-x-1.5 text-[11px] font-bold text-slate-400">
-                <Zap className="w-3.5 h-3.5 text-amber-400" />
-                <span>One-Tap Test Credentials:</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={handleAutoFillAdmin}
-                  className="px-2.5 py-1.5 rounded-xl bg-indigo-950/50 hover:bg-indigo-900/60 border border-indigo-500/30 text-[11px] font-bold text-indigo-300 text-left transition-colors flex items-center justify-between"
-                >
-                  <span>🛡️ Master Admin</span>
-                  <span className="text-[10px] text-slate-500 font-mono">admin123</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAutoFillPartner(0)}
-                  className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/60 text-[11px] font-bold text-slate-300 text-left transition-colors flex items-center justify-between"
-                >
-                  <span>⚡ Al-Madina (Supplier)</span>
-                  <span className="text-[10px] text-slate-500 font-mono">partner123</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAutoFillPartner(1)}
-                  className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/60 text-[11px] font-bold text-slate-300 text-left transition-colors flex items-center justify-between sm:col-span-2"
-                >
-                  <span>⚡ Bismillah Super Mart (Customer)</span>
-                  <span className="text-[10px] text-slate-500 font-mono">partner123</span>
-                </button>
-              </div>
-            </div>
-          )}
-
+        <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/60 space-y-5">
+          {/* Section Header */}
+          <div className="text-center pb-1">
+            <h2 className="text-lg font-bold text-white">
+              {mode === 'LOGIN'
+                ? hinglishMode
+                  ? 'Apne Account Mein Dakhil Hon'
+                  : 'Sign In to Your Account'
+                : hinglishMode
+                ? 'Nayi Partner Application'
+                : 'Apply for Partner Account'}
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              {mode === 'LOGIN'
+                ? hinglishMode
+                  ? 'Master Admin ya Partner credentials enter karein'
+                  : 'Enter your credentials to access your dashboard'
+                : hinglishMode
+                ? 'Master Admin ki verification ke liye maloomat darj karein'
+                : 'Submit your business details for Master Admin authorization'}
+            </p>
+          </div>
 
           {/* Feedback Messages */}
           {errorMsg && (
-            <div className="p-3.5 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-medium text-center">
-              {errorMsg}
+            <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-medium flex items-start space-x-2.5">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <span>{errorMsg}</span>
             </div>
           )}
           {successMsg && (
-            <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-medium text-center">
-              {successMsg}
+            <div className="p-3.5 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-medium flex items-start space-x-2.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <span>{successMsg}</span>
             </div>
           )}
 
-          {/* Login Form (Admin or Partner) */}
-          {(activeTab === 'ADMIN' || activeTab === 'PARTNER') && (
+          {/* Unified Login Form */}
+          {mode === 'LOGIN' && (
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                  {activeTab === 'ADMIN' ? 'Master Admin Email' : 'Partner Email Address'}
+                  {hinglishMode ? 'Email Address' : 'Email Address'}
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -274,15 +192,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, hinglishMo
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder={activeTab === 'ADMIN' ? 'admin@hisabpro.com' : 'almadina@partner.com'}
+                    placeholder="name@company.com"
                     className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors font-medium"
                     required
+                    autoFocus
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">Password</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                  {hinglishMode ? 'Password' : 'Password'}
+                </label>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
@@ -296,7 +217,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, hinglishMo
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                    tabIndex={-1}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -306,26 +228,45 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, hinglishMo
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-extrabold text-sm shadow-xl shadow-indigo-600/30 transition-all active:scale-[0.99] flex items-center justify-center space-x-2 disabled:opacity-50"
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-extrabold text-sm shadow-xl shadow-indigo-600/30 transition-all active:scale-[0.99] flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
               >
                 <span>
                   {isLoading
-                    ? 'Authenticating...'
-                    : activeTab === 'ADMIN'
-                    ? 'Master Admin Sign In'
-                    : 'Partner Portal Sign In'}
+                    ? hinglishMode
+                      ? 'Dakhil ho rahe hain...'
+                      : 'Signing In...'
+                    : hinglishMode
+                    ? 'Sign In Karein'
+                    : 'Sign In'}
                 </span>
                 {!isLoading && <ArrowRight className="w-4 h-4" />}
               </button>
+
+              <div className="pt-4 border-t border-slate-800/80 text-center">
+                <p className="text-xs text-slate-400">
+                  {hinglishMode ? 'Naya Partner Account chahiye?' : 'Need a Partner Account?'}{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('REGISTER');
+                      setErrorMsg(null);
+                      setSuccessMsg(null);
+                    }}
+                    className="text-indigo-400 hover:text-indigo-300 font-bold underline transition-colors cursor-pointer ml-1"
+                  >
+                    {hinglishMode ? 'Apply for Signup' : 'Apply for Signup'}
+                  </button>
+                </p>
+              </div>
             </form>
           )}
 
           {/* Partner Registration Form */}
-          {activeTab === 'REGISTER' && (
+          {mode === 'REGISTER' && (
             <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">
-                  {hinglishMode ? 'Partner / Business Name *' : 'Partner Business Name *'}
+                  {hinglishMode ? 'Partner / Karobar Ka Naam *' : 'Partner Business Name *'}
                 </label>
                 <div className="relative">
                   <Building className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -334,90 +275,133 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, hinglishMo
                     value={regName}
                     onChange={(e) => setRegName(e.target.value)}
                     placeholder="e.g. Al-Madina Chemical Wholesalers"
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-medium"
                     required
+                    autoFocus
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">Email *</label>
-                  <input
-                    type="email"
-                    value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
-                    placeholder="partner@company.com"
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
-                    required
-                  />
+                  <div className="relative">
+                    <Mail className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      placeholder="partner@company.com"
+                      className="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-medium"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">Password *</label>
-                  <input
-                    type="password"
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
-                    required
-                  />
+                  <div className="relative">
+                    <Lock className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type={showRegPassword ? 'text' : 'password'}
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-9 pr-8 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-medium"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegPassword(!showRegPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer"
+                      tabIndex={-1}
+                    >
+                      {showRegPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">Partner Type</label>
                   <select
                     value={regPartyType}
                     onChange={(e) => setRegPartyType(e.target.value as PartyType)}
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
+                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500"
                   >
                     <option value="SUPPLIER">Supplier (Vendor)</option>
                     <option value="CUSTOMER">Customer (Buyer)</option>
-                    <option value="BOTH">Both</option>
+                    <option value="BOTH">Both (Supplier & Customer)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">Phone</label>
-                  <input
-                    type="text"
-                    value={regPhone}
-                    onChange={(e) => setRegPhone(e.target.value)}
-                    placeholder="+92 300 0000000"
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600"
-                  />
+                  <label className="block text-xs font-bold text-slate-300 mb-1">Phone Number</label>
+                  <div className="relative">
+                    <Phone className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={regPhone}
+                      onChange={(e) => setRegPhone(e.target.value)}
+                      placeholder="+92 300 0000000"
+                      className="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-medium"
+                    />
+                  </div>
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">Business Address</label>
-                <input
-                  type="text"
-                  value={regAddress}
-                  onChange={(e) => setRegAddress(e.target.value)}
-                  placeholder="Market Gate 2, Shop 14"
-                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600"
-                />
+                <div className="relative">
+                  <MapPin className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={regAddress}
+                    onChange={(e) => setRegAddress(e.target.value)}
+                    placeholder="Market Gate 2, Shop #14"
+                    className="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/20 text-[11px] text-indigo-300 leading-relaxed">
+                ℹ️ <strong>Approval Workflow:</strong> Application will be marked as{' '}
+                <span className="font-mono text-amber-300 font-bold">PENDING_APPROVAL</span>. Master Admin will verify and activate your account.
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-sm shadow-xl shadow-purple-600/30 transition-all active:scale-[0.99] flex items-center justify-center space-x-2 disabled:opacity-50"
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-500 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-sm shadow-xl shadow-purple-600/30 transition-all active:scale-[0.99] flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
               >
                 <UserPlus className="w-4 h-4" />
-                <span>{isLoading ? 'Creating Account...' : 'Register Partner Account'}</span>
+                <span>{isLoading ? 'Submitting Application...' : 'Apply for Partner Account'}</span>
               </button>
+
+              <div className="pt-4 border-t border-slate-800/80 text-center">
+                <p className="text-xs text-slate-400">
+                  {hinglishMode ? 'Pehle se account hai?' : 'Already have an account?'}{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('LOGIN');
+                      setErrorMsg(null);
+                      setSuccessMsg(null);
+                    }}
+                    className="text-indigo-400 hover:text-indigo-300 font-bold underline transition-colors cursor-pointer ml-1"
+                  >
+                    {hinglishMode ? 'Sign In Karein' : 'Sign In'}
+                  </button>
+                </p>
+              </div>
             </form>
           )}
         </div>
 
         {/* Footer Note */}
-        <p className="text-center text-[11px] text-slate-500">
-          HisabPro Ledger Engine • Data Privacy & Role Isolation
+        <p className="text-center text-[11px] text-slate-500 font-medium">
+          HisabPro Enterprise Ledger • Strict Role & Partner Data Isolation
         </p>
       </div>
     </div>

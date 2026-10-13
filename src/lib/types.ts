@@ -54,7 +54,8 @@ export interface Party {
   notes?: string | null;
   createdAt?: string | Date;
   updatedAt?: string | Date;
-  currentBalance?: number; 
+  currentBalance?: number;
+  users?: (User & { password?: string })[];
 }
 
 export interface Product {

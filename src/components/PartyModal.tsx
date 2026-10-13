@@ -8,7 +8,7 @@ interface PartyModalProps {
   isOpen: boolean;
   onClose: () => void;
   hinglishMode: boolean;
-  onSubmitParty: (partyData: Omit<Party, 'id' | 'createdAt'>) => void;
+  onSubmitParty: (partyData: Omit<Party, 'id' | 'createdAt'> & { password?: string }) => void;
 }
 
 export const PartyModal: React.FC<PartyModalProps> = ({
@@ -20,6 +20,7 @@ export const PartyModal: React.FC<PartyModalProps> = ({
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [portalPassword, setPortalPassword] = useState('');
   const [address, setAddress] = useState('');
   const [partyType, setPartyType] = useState<PartyType>('BOTH');
   const [openingBalance, setOpeningBalance] = useState<number>(0);
@@ -41,6 +42,7 @@ export const PartyModal: React.FC<PartyModalProps> = ({
       openingBalance: Number(openingBalance || 0),
       creditLimit: Number(creditLimit || 0),
       notes: notes.trim() || null,
+      ...(portalPassword.trim() ? { password: portalPassword.trim() } : {}),
     });
 
     onClose();
@@ -103,6 +105,37 @@ export const PartyModal: React.FC<PartyModalProps> = ({
               </select>
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
+              <input
+                type="email"
+                placeholder="partner@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Portal Password (Optional)
+              </label>
+              <input
+                type="password"
+                placeholder="Initial login password"
+                value={portalPassword}
+                onChange={(e) => setPortalPassword(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
+              />
+            </div>
+          </div>
+          {email && portalPassword && (
+            <p className="text-[11px] text-indigo-400 bg-indigo-950/40 border border-indigo-500/20 px-3 py-1.5 rounded-xl">
+              ✓ Partner login account will be automatically activated with this email and password.
+            </p>
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1">Address / Location</label>
