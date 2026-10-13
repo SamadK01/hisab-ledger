@@ -49,16 +49,16 @@ export function exportPartyLedgerPDF(party: Party, transactions: Transaction[]) 
   doc.setFont('helvetica', 'bold');
   doc.text('Opening Balance:', 18, yPos + 10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`PKR ${Math.abs(party.openingBalance).toLocaleString()} ${party.openingBalance > 0 ? '(Dena hai)' : party.openingBalance < 0 ? '(Lena hai)' : '(Settled)'}`, 55, yPos + 10);
+  doc.text(`PKR ${Math.abs(party.openingBalance).toLocaleString()} ${party.openingBalance > 0 ? '(Payable)' : party.openingBalance < 0 ? '(Receivable)' : '(Settled)'}`, 55, yPos + 10);
 
   doc.setFont('helvetica', 'bold');
   doc.text('Current Net Position:', 115, yPos + 10);
   if (currentBal > 0) {
-    doc.setTextColor(225, 29, 72); // Red Dena hai
-    doc.text(`PKR ${Math.abs(currentBal).toLocaleString()} (DENA HAI)`, 158, yPos + 10);
+    doc.setTextColor(225, 29, 72); // Red Payable
+    doc.text(`PKR ${Math.abs(currentBal).toLocaleString()} (PAYABLE)`, 158, yPos + 10);
   } else if (currentBal < 0) {
-    doc.setTextColor(16, 185, 129); // Green Lena hai
-    doc.text(`PKR ${Math.abs(currentBal).toLocaleString()} (LENA HAI)`, 158, yPos + 10);
+    doc.setTextColor(16, 185, 129); // Green Receivable
+    doc.text(`PKR ${Math.abs(currentBal).toLocaleString()} (RECEIVABLE)`, 158, yPos + 10);
   } else {
     doc.setTextColor(71, 85, 105);
     doc.text('PKR 0 (SETTLED)', 158, yPos + 10);

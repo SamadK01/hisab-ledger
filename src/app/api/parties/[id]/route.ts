@@ -26,56 +26,59 @@ export async function DELETE(
     const targetId = party?.id || id;
     const partyEmail = party?.email || null;
 
-    // 1. Delete associated transaction items first, then transactions
-    const partyTxs = await prisma.transaction.findMany({
-      where: { partyId: targetId },
-      select: { id: true },
-    });
-    const txIds = partyTxs.map((t) => t.id);
-
-    if (txIds.length > 0) {
-      await prisma.transactionItem.deleteMany({
-        where: { transactionId: { in: txIds } },
+    // Execute permanent cascading delete atomically in PostgreSQL
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete associated transaction items first, then transactions
+      const partyTxs = await tx.transaction.findMany({
+        where: { partyId: targetId },
+        select: { id: true },
       });
-    }
+      const txIds = partyTxs.map((t) => t.id);
 
-    await prisma.transaction.deleteMany({
-      where: { partyId: targetId },
-    });
+      if (txIds.length > 0) {
+        await tx.transactionItem.deleteMany({
+          where: { transactionId: { in: txIds } },
+        });
+      }
 
-    // 2. Delete associated ledger messages
-    await prisma.ledgerMessage.deleteMany({
-      where: { partyId: targetId },
-    });
+      await tx.transaction.deleteMany({
+        where: { partyId: targetId },
+      });
 
-    // 3. Delete password reset requests tied to party
-    await prisma.passwordResetRequest.deleteMany({
-      where: {
-        OR: [
-          { partyId: targetId },
-          ...(partyEmail ? [{ userEmail: partyEmail }] : []),
-        ],
-      },
-    });
+      // 2. Delete associated ledger messages
+      await tx.ledgerMessage.deleteMany({
+        where: { partyId: targetId },
+      });
 
-    // 4. Delete user accounts tied to this party
-    await prisma.user.deleteMany({
-      where: {
-        OR: [
-          { partyId: targetId },
-          ...(partyEmail ? [{ email: partyEmail }] : []),
-        ],
-      },
-    });
+      // 3. Delete password reset requests tied to party
+      await tx.passwordResetRequest.deleteMany({
+        where: {
+          OR: [
+            { partyId: targetId },
+            ...(partyEmail ? [{ userEmail: partyEmail }] : []),
+          ],
+        },
+      });
 
-    // 5. Delete party profile permanently
-    await prisma.party.deleteMany({
-      where: {
-        OR: [
-          { id: targetId },
-          { id },
-        ],
-      },
+      // 4. Delete user accounts tied to this party
+      await tx.user.deleteMany({
+        where: {
+          OR: [
+            { partyId: targetId },
+            ...(partyEmail ? [{ email: partyEmail }] : []),
+          ],
+        },
+      });
+
+      // 5. Delete party profile permanently
+      await tx.party.deleteMany({
+        where: {
+          OR: [
+            { id: targetId },
+            { id },
+          ],
+        },
+      });
     });
 
     return NextResponse.json({

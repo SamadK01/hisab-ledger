@@ -63,27 +63,46 @@ You can sign in to test both **Master Admin** and **Partner Data Isolation** mod
    cd hisab-ledger
    ```
 
-2. Ensure Prisma SQLite database is generated:
+2. Configure environment variables in `.env`:
+   ```bash
+   DATABASE_URL="postgresql://username:password@localhost:5432/hisabpro?schema=public"
+   ```
+
+3. Push schema to database and generate Prisma Client:
    ```bash
    npx prisma db push && npx prisma generate
    ```
 
-3. Run the development server:
+4. Seed the clean sample multi-party dataset:
+   ```bash
+   npm run db:seed
+   ```
+
+5. Run the development server:
    ```bash
    npm run dev
    ```
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+6. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 🚀 Deployment on Vercel
+## 🚀 Deployment on Vercel with PostgreSQL
 
-HisabPro is pre-configured for zero-config Vercel deployment:
+HisabPro is pre-configured for automated Vercel deployment:
 
-```bash
-git add .
-git commit -m "Deploy HisabPro with Partner Data Isolation"
-git push origin main
-```
-Import the repository on **Vercel** and click **Deploy**!
+1. Push your repository to GitHub:
+   ```bash
+   git add .
+   git commit -m "Configure PostgreSQL and production fixes"
+   git push origin main
+   ```
+
+2. Import the project into **Vercel**.
+3. In Project Settings > **Environment Variables**, set:
+   - `DATABASE_URL`: Your PostgreSQL connection string (from Neon, Supabase, Vercel Postgres, or Railway).
+4. The build script automatically synchronizes the database schema during deployment:
+   ```bash
+   prisma generate && prisma db push && next build
+   ```
+5. Click **Deploy**! Once live, click **"Seed Data"** in the top navbar or trigger `/api/seed` to initialize the database with clean starting ledger records.

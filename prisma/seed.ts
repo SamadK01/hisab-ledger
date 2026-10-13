@@ -11,7 +11,7 @@ import {
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🔄 Clearing local SQLite database tables completely...');
+  console.log('🔄 Clearing PostgreSQL database tables completely...');
 
   // Cascade delete in proper order
   await prisma.transactionItem.deleteMany({});
@@ -145,7 +145,7 @@ async function main() {
     });
   }
 
-  console.log('✅ SQLite Database successfully seeded with realistic multi-party trading dataset!');
+  console.log('✅ PostgreSQL Database successfully seeded with realistic multi-party trading dataset!');
 }
 
 main()

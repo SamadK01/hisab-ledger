@@ -160,7 +160,7 @@ export const PartyModal: React.FC<PartyModalProps> = ({
                 className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
               />
               <span className="text-[10px] text-slate-500 block mt-0.5">
-                Positive = Dena hai, Negative = Lena hai
+                Positive = Payable (You Owe), Negative = Receivable (They Owe)
               </span>
             </div>
 
